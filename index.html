@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>장보기 메모</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #8b7355;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            font-family: 'Gaegu', cursive;
+        }
+
+        .notebook {
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+        }
+
+        /* 스프링 바인딩 */
+        .spring {
+            position: absolute;
+            top: 0;
+            left: 28px;
+            width: 20px;
+            height: 100%;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding-top: 30px;
+        }
+
+        .spring-ring {
+            width: 20px;
+            height: 14px;
+            border: 2.5px solid #888;
+            border-radius: 50%;
+            background: linear-gradient(to bottom, #ccc, #999);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        /* 노트 페이지 */
+        .page {
+            background: #fffef5;
+            border-radius: 3px 8px 8px 3px;
+            box-shadow:
+                3px 3px 8px rgba(0,0,0,0.25),
+                -1px 0 2px rgba(0,0,0,0.05),
+                inset 0 0 40px rgba(0,0,0,0.02);
+            padding: 35px 30px 35px 60px;
+            min-height: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 빨간 세로줄 */
+        .page::before {
+            content: '';
+            position: absolute;
+            left: 52px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(220, 80, 80, 0.35);
+        }
+
+        /* 줄무늬 배경 */
+        .page::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            background-image: repeating-linear-gradient(
+                transparent,
+                transparent 31px,
+                #c8e0f0 31px,
+                #c8e0f0 32px
+            );
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .page-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .title {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 6px;
+            line-height: 38px;
+            padding-top: 2px;
+        }
+
+        .date {
+            font-size: 1.1em;
+            color: #888;
+            margin-bottom: 24px;
+            font-weight: 400;
+            line-height: 32px;
+        }
+
+        /* 연결 상태 표시 */
+        .connection-status {
+            font-size: 0.95em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 32px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.4s;
+        }
+
+        .connection-status.connecting {
+            color: #aaa;
+        }
+
+        .connection-status.connected {
+            color: #4a7c59;
+        }
+
+        .connection-status.error {
+            color: #e74c3c;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background 0.4s;
+        }
+
+        .connection-status.connecting .status-dot {
+            background: #bbb;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        .connection-status.connected .status-dot {
+            background: #4a7c59;
+        }
+
+        .connection-status.error .status-dot {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        /* 오류 배너 */
+        .error-banner {
+            display: none;
+            background: rgba(231, 76, 60, 0.08);
+            border: 1px dashed rgba(231, 76, 60, 0.4);
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            font-size: 1em;
+            color: #c0392b;
+            line-height: 1.4;
+            font-weight: 700;
+        }
+
+        .error-banner.visible {
+            display: block;
+        }
+
+        /* 입력 영역 */
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            line-height: 32px;
+        }
+
+        #itemInput {
+            flex: 1;
+            border: none;
+            border-bottom: 1.5px dashed #aaa;
+            background: transparent;
+            font-family: 'Gaegu', cursive;
+            font-size: 1.4em;
+            color: #222;
+            font-weight: 700;
+            padding: 4px 2px;
+            line-height: 36px;
+            transition: border-bottom-color 0.2s;
+        }
+
+        #itemInput:focus {
+            outline: none;
+            border-bottom-color: #4a7c59;
+        }
+
+        #itemInput::placeholder {
+            color: #999;
+        }
+
+        #itemInput:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #addBtn {
+            background: none;
+            border: 2px solid #4a7c59;
+            color: #4a7c59;
+            font-family: 'Gaegu', cursive;
+            font-size: 1.3em;
+            font-weight: 700;
+            padding: 2px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            line-height: 36px;
+            transition: all 0.15s;
+        }
+
+        #addBtn:hover:not(:disabled) {
+            background: #4a7c59;
+            color: white;
+        }
+
+        #addBtn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        #addBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #aaa;
+            color: #aaa;
+        }
+
+        /* 로딩 스피너 */
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 50px 0;
+            gap: 8px;
+        }
+
+        .spinner-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #aaa;
+            animation: bounce 1.2s ease-in-out infinite;
+        }
+
+        .spinner-dot:nth-child(2) { animation-delay: 0.2s; }
+        .spinner-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+
+        /* 리스트 */
+        #shoppingList {
+            list-style: none;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            line-height: 38px;
+            padding: 2px 2px;
+            position: relative;
+            animation: write 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes write {
+            from {
+                opacity: 0;
+                transform: translateX(-8px);
+                clip-path: inset(0 100% 0 0);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+                clip-path: inset(0 0 0 0);
+            }
+        }
+
+        .list-item .bullet {
+            width: 6px;
+            height: 6px;
+            background: #333;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        .list-item.checked .bullet {
+            background: #4a7c59;
+        }
+
+        .item-text {
+            flex: 1;
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #222;
+            cursor: pointer;
+            padding: 2px 0;
+            transition: color 0.25s, text-decoration-color 0.25s;
+            user-select: none;
+        }
+
+        .list-item.checked .item-text {
+            color: #aaa;
+            text-decoration: line-through;
+            text-decoration-color: #e74c3c;
+            text-decoration-thickness: 2px;
+        }
+
+        /* 아이템 조작 중 흐리게 */
+        .list-item.busy {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .delete-btn {
+            opacity: 0;
+            background: none;
+            border: none;
+            color: #ccc;
+            font-family: 'Gaegu', cursive;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0 6px;
+            transition: all 0.15s;
+            line-height: 38px;
+        }
+
+        .list-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            color: #e74c3c;
+        }
+
+        /* 빈 상태 */
+        .empty-state {
+            color: #aaa;
+            font-size: 1.3em;
+            font-weight: 700;
+            text-align: center;
+            padding: 60px 0;
+            line-height: 36px;
+            animation: fadeIn 0.4s ease both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 삭제 애니메이션 */
+        .list-item.removing {
+            animation: erase 0.3s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+            pointer-events: none;
+        }
+
+        @keyframes erase {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+                max-height: 44px;
+            }
+            60% {
+                opacity: 0;
+                transform: translateX(16px);
+                max-height: 44px;
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(16px);
+                max-height: 0;
+                padding: 0;
+                margin: 0;
+                overflow: hidden;
+            }
+        }
+
+        /* 페이지 하단 너덜너덜 */
+        .page-bottom {
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: #fffef5;
+            filter: url(#torn);
+            z-index: 2;
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 20px 12px; }
+            .page { padding: 30px 20px 30px 50px; }
+            .page::before { left: 42px; }
+            .spring { left: 20px; }
+            .title { font-size: 1.5em; }
+            .list-item .delete-btn { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 찢어진 효과용 SVG 필터 -->
+    <svg style="position:absolute;width:0;height:0;">
+        <filter id="torn">
+            <feTurbulence baseFrequency="0.04" numOctaves="4" type="turbulence"/>
+            <feDisplacementMap in="SourceGraphic" scale="4"/>
+        </filter>
+    </svg>
+
+    <div class="notebook">
+        <div class="spring" id="springContainer"></div>
+        <div class="page">
+            <div class="page-content">
+                <div class="title">장보기 메모</div>
+                <div class="date" id="todayDate"></div>
+
+                <div class="connection-status connecting" id="connectionStatus">
+                    <div class="status-dot"></div>
+                    <span id="connectionText">연결 중...</span>
+                </div>
+
+                <div class="error-banner" id="errorBanner"></div>
+
+                <div class="input-row">
+                    <input
+                        type="text"
+                        id="itemInput"
+                        placeholder="여기에 적으세요..."
+                        autofocus
+                        disabled
+                    >
+                    <button id="addBtn" disabled>추가</button>
+                </div>
+
+                <ul id="shoppingList">
+                    <div class="loading-spinner">
+                        <div class="spinner-dot"></div>
+                        <div class="spinner-dot"></div>
+                        <div class="spinner-dot"></div>
+                    </div>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase JS SDK (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // ─── DOM 참조 ───────────────────────────────────────────────────────────
+        const itemInput        = document.getElementById('itemInput');
+        const addBtn           = document.getElementById('addBtn');
+        const shoppingList     = document.getElementById('shoppingList');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionText   = document.getElementById('connectionText');
+        const errorBanner      = document.getElementById('errorBanner');
+
+        // ─── 날짜 표시 ──────────────────────────────────────────────────────────
+        const today = new Date();
+        document.getElementById('todayDate').textContent =
+            `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+
+        // ─── 스프링 생성 ────────────────────────────────────────────────────────
+        const springContainer = document.getElementById('springContainer');
+        const ringCount = Math.max(Math.floor(window.innerHeight / 36), 16);
+        for (let i = 0; i < ringCount; i++) {
+            const ring = document.createElement('div');
+            ring.className = 'spring-ring';
+            springContainer.appendChild(ring);
+        }
+
+        // ─── 상태 ───────────────────────────────────────────────────────────────
+        let supabase = null;
+        let realtimeChannel = null;
+
+        // ─── 연결 상태 UI ────────────────────────────────────────────────────────
+        function setStatus(state, message) {
+            connectionStatus.className = `connection-status ${state}`;
+            connectionText.textContent = message;
+        }
+
+        function showError(message) {
+            errorBanner.textContent = message;
+            errorBanner.classList.add('visible');
+        }
+
+        function hideError() {
+            errorBanner.classList.remove('visible');
+        }
+
+        // ─── 입력 활성화/비활성화 ───────────────────────────────────────────────
+        function setInputEnabled(enabled) {
+            itemInput.disabled = !enabled;
+            addBtn.disabled = !enabled;
+            if (enabled) itemInput.focus();
+        }
+
+        // ─── Supabase 초기화 ────────────────────────────────────────────────────
+        async function initSupabase() {
+            try {
+                const res = await fetch('/api/config');
+                if (!res.ok) throw new Error(`설정 로드 실패 (${res.status})`);
+
+                const { supabaseUrl, supabaseAnonKey, error } = await res.json();
+                if (error) throw new Error(error);
+                if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 환경변수가 설정되지 않았습니다.');
+
+                supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+                setStatus('connected', 'Supabase 연결됨');
+                hideError();
+                setInputEnabled(true);
+
+                await loadItems();
+                subscribeRealtime();
+
+            } catch (err) {
+                console.error('Supabase 초기화 오류:', err);
+                setStatus('error', '연결 실패');
+                showError(`⚠️ ${err.message || '서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.'}`);
+                // 로딩 스피너 제거 후 빈 상태 표시
+                renderEmpty();
+            }
+        }
+
+        // ─── 아이템 렌더링 ──────────────────────────────────────────────────────
+        function renderEmpty() {
+            shoppingList.innerHTML = '<div class="empty-state">아직 아무것도 없어요 ✏️</div>';
+        }
+
+        function renderLoading() {
+            shoppingList.innerHTML = `
+                <div class="loading-spinner">
+                    <div class="spinner-dot"></div>
+                    <div class="spinner-dot"></div>
+                    <div class="spinner-dot"></div>
+                </div>`;
+        }
+
+        async function loadItems() {
+            renderLoading();
+            const { data: items, error } = await supabase
+                .from('shopping_items')
+                .select('*')
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('데이터 로드 오류:', error);
+                showError('⚠️ 목록을 불러오는 데 실패했습니다.');
+                renderEmpty();
+                return;
+            }
+
+            shoppingList.innerHTML = '';
+            if (items.length === 0) {
+                renderEmpty();
+                return;
+            }
+
+            items.forEach((item, idx) => addItemToDOM(item, idx));
+        }
+
+        function addItemToDOM(item, index = 0) {
+            const li = document.createElement('li');
+            li.className = `list-item ${item.completed ? 'checked' : ''}`;
+            li.dataset.id = item.id;
+            li.style.animationDelay = `${index * 0.04}s`;
+
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+
+            const span = document.createElement('span');
+            span.className = 'item-text';
+            span.textContent = item.name;
+            span.addEventListener('click', () => toggleItem(item.id, li));
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '×';
+            deleteBtn.addEventListener('click', () => deleteItem(item.id, li));
+
+            li.appendChild(bullet);
+            li.appendChild(span);
+            li.appendChild(deleteBtn);
+            shoppingList.appendChild(li);
+        }
+
+        // ─── 아이템 추가 ────────────────────────────────────────────────────────
+        async function addItem() {
+            const text = itemInput.value.trim();
+            if (!text || !supabase) return;
+
+            setInputEnabled(false);
+            itemInput.value = '';
+
+            const { error } = await supabase
+                .from('shopping_items')
+                .insert([{ name: text, completed: false }]);
+
+            if (error) {
+                console.error('추가 오류:', error);
+                showError('⚠️ 항목을 추가하지 못했습니다. 다시 시도해 주세요.');
+                itemInput.value = text; // 실패 시 텍스트 복원
+            } else {
+                hideError();
+            }
+
+            setInputEnabled(true);
+        }
+
+        // ─── 완료 토글 ──────────────────────────────────────────────────────────
+        async function toggleItem(id, li) {
+            if (!supabase || li.classList.contains('busy')) return;
+            li.classList.add('busy');
+
+            const isChecked = li.classList.contains('checked');
+            const { error } = await supabase
+                .from('shopping_items')
+                .update({ completed: !isChecked, updated_at: new Date().toISOString() })
+                .eq('id', id);
+
+            if (error) {
+                console.error('업데이트 오류:', error);
+                showError('⚠️ 상태를 변경하지 못했습니다.');
+            } else {
+                hideError();
+            }
+
+            li.classList.remove('busy');
+        }
+
+        // ─── 아이템 삭제 ────────────────────────────────────────────────────────
+        async function deleteItem(id, li) {
+            if (!supabase || li.classList.contains('removing')) return;
+
+            li.classList.add('removing');
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const { error } = await supabase
+                .from('shopping_items')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error('삭제 오류:', error);
+                li.classList.remove('removing');
+                showError('⚠️ 항목을 삭제하지 못했습니다.');
+            } else {
+                hideError();
+                // Realtime이 없는 환경을 대비해 DOM에서도 직접 제거
+                li.remove();
+                if (shoppingList.querySelectorAll('.list-item').length === 0) {
+                    renderEmpty();
+                }
+            }
+        }
+
+        // ─── Realtime 구독 ──────────────────────────────────────────────────────
+        function subscribeRealtime() {
+            if (realtimeChannel) {
+                supabase.removeChannel(realtimeChannel);
+            }
+
+            realtimeChannel = supabase
+                .channel('shopping_items_changes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'shopping_items' },
+                    (payload) => {
+                        const { eventType, new: newRow, old: oldRow } = payload;
+
+                        if (eventType === 'INSERT') {
+                            // 이미 DOM에 있는지 확인 (내가 추가한 경우 중복 방지)
+                            if (!shoppingList.querySelector(`[data-id="${newRow.id}"]`)) {
+                                const emptyState = shoppingList.querySelector('.empty-state');
+                                if (emptyState) emptyState.remove();
+                                addItemToDOM(newRow, shoppingList.querySelectorAll('.list-item').length);
+                            }
+                        } else if (eventType === 'UPDATE') {
+                            const li = shoppingList.querySelector(`[data-id="${newRow.id}"]`);
+                            if (li) {
+                                li.classList.toggle('checked', newRow.completed);
+                            }
+                        } else if (eventType === 'DELETE') {
+                            const li = shoppingList.querySelector(`[data-id="${oldRow.id}"]`);
+                            if (li && !li.classList.contains('removing')) {
+                                li.classList.add('removing');
+                                setTimeout(() => {
+                                    li.remove();
+                                    if (shoppingList.querySelectorAll('.list-item').length === 0) {
+                                        renderEmpty();
+                                    }
+                                }, 300);
+                            }
+                        }
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        setStatus('connected', '실시간 동기화 중');
+                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        setStatus('error', '실시간 연결 끊김');
+                    }
+                });
+        }
+
+        // ─── 이벤트 ─────────────────────────────────────────────────────────────
+        addBtn.addEventListener('click', addItem);
+        itemInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addItem();
+        });
+
+        // ─── 시작 ───────────────────────────────────────────────────────────────
+        initSupabase();
+    </script>
+</body>
+</html>
