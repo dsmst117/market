@@ -500,7 +500,7 @@
         }
 
         // ─── 상태 ───────────────────────────────────────────────────────────────
-        let supabase = null;
+        let supabaseClient = null;
         let realtimeChannel = null;
 
         // ─── 연결 상태 UI ────────────────────────────────────────────────────────
@@ -535,7 +535,7 @@
                 if (error) throw new Error(error);
                 if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 환경변수가 설정되지 않았습니다.');
 
-                supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+                supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
                 setStatus('connected', 'Supabase 연결됨');
                 hideError();
@@ -569,7 +569,7 @@
 
         async function loadItems() {
             renderLoading();
-            const { data: items, error } = await supabase
+            const { data: items, error } = await supabaseClient
                 .from('shopping_items')
                 .select('*')
                 .order('created_at', { ascending: true });
@@ -618,12 +618,12 @@
         // ─── 아이템 추가 ────────────────────────────────────────────────────────
         async function addItem() {
             const text = itemInput.value.trim();
-            if (!text || !supabase) return;
+            if (!text || !supabaseClient) return;
 
             setInputEnabled(false);
             itemInput.value = '';
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('shopping_items')
                 .insert([{ name: text, completed: false }]);
 
@@ -640,11 +640,11 @@
 
         // ─── 완료 토글 ──────────────────────────────────────────────────────────
         async function toggleItem(id, li) {
-            if (!supabase || li.classList.contains('busy')) return;
+            if (!supabaseClient || li.classList.contains('busy')) return;
             li.classList.add('busy');
 
             const isChecked = li.classList.contains('checked');
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('shopping_items')
                 .update({ completed: !isChecked, updated_at: new Date().toISOString() })
                 .eq('id', id);
@@ -661,12 +661,12 @@
 
         // ─── 아이템 삭제 ────────────────────────────────────────────────────────
         async function deleteItem(id, li) {
-            if (!supabase || li.classList.contains('removing')) return;
+            if (!supabaseClient || li.classList.contains('removing')) return;
 
             li.classList.add('removing');
             await new Promise(resolve => setTimeout(resolve, 300));
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('shopping_items')
                 .delete()
                 .eq('id', id);
@@ -688,10 +688,10 @@
         // ─── Realtime 구독 ──────────────────────────────────────────────────────
         function subscribeRealtime() {
             if (realtimeChannel) {
-                supabase.removeChannel(realtimeChannel);
+                supabaseClient.removeChannel(realtimeChannel);
             }
 
-            realtimeChannel = supabase
+            realtimeChannel = supabaseClient
                 .channel('shopping_items_changes')
                 .on(
                     'postgres_changes',
